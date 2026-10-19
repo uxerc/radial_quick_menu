@@ -1,4 +1,5 @@
 import './styles.css';
+import { loadHotkeyTexts, parseAll } from './app/hotkeys';
 import { bindInput } from './app/input';
 import { ContextStore } from './app/store';
 import { mountDevPanel } from './dev/panel';
@@ -13,12 +14,15 @@ const store = new ContextStore();
 store.subscribe((ctx) => controller.setContext(ctx));
 controller.subscribe(() => renderWheel(svg, controller.view()));
 
+let hotkeys = parseAll(loadHotkeyTexts());
 let log = (message: string): void => console.info(message);
 let pasteTarget = (): HTMLTextAreaElement | null => null;
 
 if (!isTauri) {
   document.body.classList.add('dev');
-  const panel = mountDevPanel(document.querySelector<HTMLElement>('#dev')!, store);
+  const panel = mountDevPanel(document.querySelector<HTMLElement>('#dev')!, store, (texts) => {
+    hotkeys = parseAll(texts);
+  });
   log = panel.log;
   pasteTarget = panel.pasteTarget;
 }
@@ -34,6 +38,7 @@ const input = bindInput(
       .catch((error: unknown) => log(`✗ ${item.action.id}: ${String(error)}`));
   },
   { onClosed: isTauri ? closeOverlay : undefined },
+  () => hotkeys,
 );
 
 if (isTauri) {

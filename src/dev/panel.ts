@@ -1,3 +1,4 @@
+import { loadHotkeyTexts, parseCombo, saveHotkeyTexts } from '../app/hotkeys';
 import type { ContextStore } from '../app/store';
 import type { WheelContext } from '../wheel/types';
 
@@ -11,11 +12,19 @@ export interface DevPanel {
   openButton: HTMLButtonElement;
 }
 
-export function mountDevPanel(root: HTMLElement, store: ContextStore): DevPanel {
+export function mountDevPanel(
+  root: HTMLElement,
+  store: ContextStore,
+  onHotkeys: (texts: string[]) => void,
+): DevPanel {
   root.innerHTML = `
     <h1>Radial file wheel · dev</h1>
     <button id="dev-open" data-testid="dev-open">Open wheel at last cursor position</button>
-    <div class="hint">Ctrl+Alt+Space or Alt+right-click opens it. Shift swaps layers, Space locks, Esc cancels.</div>
+    <div class="hint">Alt+right-click or a hotkey opens it. Shift swaps layers, Space locks, Esc cancels.</div>
+
+    <h2>Hotkeys (comma separated, e.g. Ctrl+Alt+Space, Ctrl+Shift+K)</h2>
+    <input id="dev-hotkeys" data-testid="dev-hotkeys" />
+    <div class="hint" id="dev-hotkeys-hint"></div>
 
     <h2>Selection override (one path per line, empty = no selection)</h2>
     <textarea id="dev-selection" data-testid="dev-selection" placeholder="C:/Users/me/report.png"></textarea>
@@ -45,6 +54,18 @@ export function mountDevPanel(root: HTMLElement, store: ContextStore): DevPanel 
   const historyList = root.querySelector<HTMLUListElement>('#dev-history')!;
   const logBox = root.querySelector<HTMLDivElement>('#dev-log')!;
   const openButton = root.querySelector<HTMLButtonElement>('#dev-open')!;
+
+  const hotkeys = root.querySelector<HTMLInputElement>('#dev-hotkeys')!;
+  const hotkeysHint = root.querySelector<HTMLDivElement>('#dev-hotkeys-hint')!;
+  hotkeys.value = loadHotkeyTexts().join(', ');
+  hotkeys.addEventListener('input', () => {
+    const texts = hotkeys.value.split(',').map((t) => t.trim()).filter(Boolean);
+    const invalid = texts.filter((t) => parseCombo(t) === null);
+    hotkeysHint.textContent = invalid.length > 0 ? `Ignored (need a modifier and one key): ${invalid.join(', ')}` : '';
+    const valid = texts.filter((t) => parseCombo(t) !== null);
+    saveHotkeyTexts(valid);
+    onHotkeys(valid);
+  });
 
   selection.addEventListener('input', () => store.setSelection(lines(selection.value)));
   recent.addEventListener('input', () => store.setRecentSaves(lines(recent.value)));

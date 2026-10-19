@@ -8,7 +8,7 @@ Radial menu for the top 20% of file actions. Spec: milestone 1 (overlay UI, hotk
     npm run dev        # http://localhost:1420, dev panel on the left
     npm test
 
-Ctrl+Alt+Space or Alt+right-click opens the wheel at the cursor. Shift swaps to layer B, Space locks it, Esc / right-click / click outside / click center cancels.
+Ctrl+Alt+Space or Alt+right-click opens the wheel at the cursor. Hotkeys are editable in the dev panel (stored in localStorage). Shift swaps to layer B, Space locks it, Esc / right-click / click outside / click center cancels.
 
 ## Run (Windows desktop overlay)
 
@@ -17,7 +17,8 @@ Prereqs: Node 20+, Rust (rustup, MSVC toolchain), WebView2 (ships with Windows 1
     npm install
     npm run tauri dev
 
-Ctrl+Alt+Space (global) opens the wheel at the cursor on the monitor under it.
+Ctrl+Alt+Space (global) opens the wheel at the cursor on the monitor under it. Every hotkey also gets a Shift twin (Ctrl+Alt+Shift+Space) that opens straight into layer B.
+Extra or replacement hotkeys: `hotkeys.json` in the app config dir, e.g. `{"hotkeys": ["Ctrl+Alt+Space", "Ctrl+Shift+K"]}`. Alt+right-click in the overlay needs the milestone 2 mouse hook.
 The Rust side is only type-checked (`cargo check --target x86_64-pc-windows-msvc`), not run.
 
 ## Layout

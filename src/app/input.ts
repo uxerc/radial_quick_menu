@@ -1,14 +1,17 @@
 import type { WheelController } from '../wheel/controller';
+import { matches } from './hotkeys';
+import type { Combo } from './hotkeys';
 
 export interface InputHooks {
   onClosed?: () => void;
 }
 
-/** Browser stand-in for the native trigger: Ctrl+Alt+Space or Alt+right-click opens at the cursor. */
+/** Browser stand-in for the native trigger: Configured hotkeys or Alt+right-click open at the cursor. */
 export function bindInput(
   controller: WheelController,
   run: (item: NonNullable<ReturnType<WheelController['commit']>['item']>) => void,
   hooks: InputHooks = {},
+  hotkeys: () => Combo[] = () => [],
 ): { openAt: (x: number, y: number, shift: boolean) => void } {
   let last = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 
@@ -55,7 +58,7 @@ export function bindInput(
     'keydown',
     (e) => {
       if (!controller.isWheelOpen) {
-        if (e.ctrlKey && e.altKey && e.code === 'Space') {
+        if (hotkeys().some((combo) => matches(combo, e))) {
           e.preventDefault();
           openAt(last.x, last.y, e.shiftKey);
         }
