@@ -39,6 +39,7 @@ import {
   Image as ImageIcon,
 } from 'lucide';
 import type { IconNode } from 'lucide';
+import { basename } from '../fs/paths';
 import { GEOMETRY } from './geometry';
 import type { ClipItem, Layer, WheelContext, WheelItem, WheelSlot } from './types';
 
@@ -68,12 +69,19 @@ function items(prefix: string, defs: StaticItem[]): WheelItem[] {
 function clipItems(prefix: string, list: ClipItem[]): WheelItem[] {
   return list.slice(0, GEOMETRY.maxChildren).map((c) => ({
     id: `${prefix}.${c.id}`,
-    label: truncate(c.text),
+    label: truncate(c.kind === 'file' ? basename(c.text) : c.text),
     fullLabel: c.text,
-    icon: c.kind === 'url' ? Globe : TextCursorInput,
+    icon: CLIP_ICONS[c.kind],
     action: { id: prefix, payload: c },
   }));
 }
+
+const CLIP_ICONS: Record<ClipItem['kind'], IconNode> = {
+  text: TextCursorInput,
+  url: Globe,
+  image: ImageIcon,
+  file: File,
+};
 
 const NEEDS_SELECTION = 'Needs a file selection';
 const NEEDS_CLIPBOARD = 'Clipboard is empty';
@@ -145,7 +153,7 @@ const LAYER_A: SlotBuilder[] = [
       ctx.recentSaves.slice(0, GEOMETRY.maxChildren).map((r) => ({
         id: `recent.open.${r.id}`,
         label: truncate(r.folder),
-        fullLabel: `${r.folder}/${r.file}`,
+        fullLabel: r.path,
         icon: FolderOpen,
         action: { id: 'recent.open', payload: r },
       })),

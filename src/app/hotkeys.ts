@@ -7,7 +7,8 @@ export interface Combo {
 }
 
 const STORAGE_KEY = 'radial-file-wheel.hotkeys';
-export const DEFAULT_HOTKEYS = ['Ctrl+Alt+Space'];
+// Ctrl+Alt+Space is taken by the Claude desktop app's quick entry.
+export const DEFAULT_HOTKEYS = ['Ctrl+Shift+Space'];
 
 const NAMED_CODES: Record<string, string> = { space: 'Space', enter: 'Enter', tab: 'Tab' };
 

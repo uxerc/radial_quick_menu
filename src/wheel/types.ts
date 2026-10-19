@@ -4,14 +4,25 @@ export type Layer = 'A' | 'B';
 
 export interface ClipItem {
   id: string;
-  kind: 'text' | 'url';
+  kind: 'text' | 'url' | 'image' | 'file';
+  /** Display text; for files the workspace path. */
   text: string;
+  blob?: Blob;
+}
+
+export interface CaptureSignals {
+  title: string;
+  app: string;
 }
 
 export interface RecentSave {
   id: string;
+  path: string;
+  /** Destination folder name, shown as the wheel label. */
   folder: string;
   file: string;
+  origin: { kind: 'created' } | { kind: 'moved'; from: string };
+  signals?: CaptureSignals;
 }
 
 export interface WheelContext {

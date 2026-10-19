@@ -3,6 +3,7 @@ import { matches } from './hotkeys';
 import type { Combo } from './hotkeys';
 
 export interface InputHooks {
+  onOpen?: (x: number, y: number) => void;
   onClosed?: () => void;
 }
 
@@ -16,7 +17,10 @@ export function bindInput(
   let last = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 
   const viewport = () => ({ width: window.innerWidth, height: window.innerHeight });
-  const openAt = (x: number, y: number, shift: boolean) => controller.open(x, y, viewport(), shift);
+  const openAt = (x: number, y: number, shift: boolean) => {
+    hooks.onOpen?.(x, y);
+    controller.open(x, y, viewport(), shift);
+  };
   const close = () => {
     controller.close();
     hooks.onClosed?.();

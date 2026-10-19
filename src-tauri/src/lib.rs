@@ -52,7 +52,7 @@ struct Config {
     hotkeys: Vec<String>,
 }
 
-const DEFAULT_HOTKEY: &str = "Ctrl+Alt+Space";
+const DEFAULT_HOTKEY: &str = "Ctrl+Shift+Space";
 
 /// hotkeys.json in the app config dir: {"hotkeys": ["Ctrl+Alt+Space", "Ctrl+Shift+Space"]}
 fn load_hotkeys(app: &AppHandle) -> Vec<Shortcut> {

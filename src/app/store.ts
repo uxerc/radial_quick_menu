@@ -1,3 +1,4 @@
+import { basename } from '../fs/paths';
 import type { ClipItem, RecentSave, WheelContext } from '../wheel/types';
 
 const PINNED_KEY = 'radial-file-wheel.pinned';
@@ -12,7 +13,6 @@ export function toClipItem(text: string): ClipItem {
   };
 }
 
-/** Selection and recent saves have no native source yet, so the dev panel supplies them. */
 export class ContextStore {
   private selection: string[] = [];
   private recentSaves: RecentSave[] = [];
@@ -34,27 +34,30 @@ export class ContextStore {
     };
   }
 
-  setSelection(files: string[]): void {
-    this.selection = files;
+  setSelection(paths: string[]): void {
+    this.selection = paths;
     this.emit();
   }
 
-  setRecentSaves(entries: string[]): void {
-    this.recentSaves = entries.map((entry, i) => {
-      const cut = entry.lastIndexOf('/');
-      return {
-        id: String(i),
-        folder: cut === -1 ? entry : entry.slice(0, cut).split('/').pop() ?? entry,
-        file: cut === -1 ? entry : entry.slice(cut + 1),
-      };
-    });
+  setRecentSaves(saves: RecentSave[]): void {
+    this.recentSaves = saves;
     this.emit();
   }
 
   recordClipboard(text: string): void {
     if (text.trim() === '') return;
-    this.clipboard = [toClipItem(text), ...this.clipboard.filter((c) => c.text !== text)].slice(0, HISTORY_LIMIT);
-    this.emit();
+    this.push(toClipItem(text), (c) => c.text === text);
+  }
+
+  recordImage(blob: Blob): void {
+    const label = `Image ${new Date().toLocaleTimeString()}`;
+    this.push({ id: crypto.randomUUID(), kind: 'image', text: label, blob }, (c) => c.blob?.size === blob.size && c.kind === 'image');
+  }
+
+  recordFiles(paths: string[]): void {
+    for (const path of paths) {
+      this.push({ id: crypto.randomUUID(), kind: 'file', text: path }, (c) => c.kind === 'file' && c.text === path);
+    }
   }
 
   pin(text: string): void {
@@ -70,10 +73,19 @@ export class ContextStore {
     this.emit();
   }
 
+  private push(item: ClipItem, same: (c: ClipItem) => boolean): void {
+    this.clipboard = [item, ...this.clipboard.filter((c) => !same(c))].slice(0, HISTORY_LIMIT);
+    this.emit();
+  }
+
   private emit(): void {
     const snapshot = this.snapshot();
     for (const listener of this.listeners) listener(snapshot);
   }
+}
+
+export function clipLabel(item: ClipItem): string {
+  return item.kind === 'file' ? basename(item.text) : item.text;
 }
 
 function loadPinned(): ClipItem[] {

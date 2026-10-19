@@ -1,37 +1,50 @@
 # Radial file wheel
 
-Radial menu for the top 20% of file actions. Spec: milestone 1 (overlay UI, hotkey trigger).
+Radial menu for the top 20% of file actions. Browser build: every action a browser can do, on real files in a folder you open.
 
-## Run (browser, any OS)
+## Run
+
+Easiest: `npm run build:standalone`, then open `dist-standalone/radial-file-wheel.html` in Chrome or Edge (no server).
+
+Dev server:
 
     npm install
-    npm run dev        # http://localhost:1420, dev panel on the left
+    npm run dev        # http://localhost:1420
     npm test
 
-Ctrl+Alt+Space or Alt+right-click opens the wheel at the cursor. Hotkeys are editable in the dev panel (stored in localStorage). Shift swaps to layer B, Space locks it, Esc / right-click / click outside / click center cancels.
+## Use
 
-## Run (Windows desktop overlay)
+- **Open folder…** (top right) and allow edit access. Its files are what the wheel acts on: click, Ctrl+click, Shift+click, Ctrl+A.
+- Open the wheel with **Alt+right-click** or **Ctrl+Shift+Space** (hotkeys are editable; Ctrl+Alt+Space is taken by the Claude app).
+- Over the file list the wheel acts on the folder and selection; over the paste box it inserts text.
+- Shift swaps to layer B, Space locks it, Esc / right-click / click outside / click center cancels.
 
-Prereqs: Node 20+, Rust (rustup, MSVC toolchain), WebView2 (ships with Windows 11).
+| Slot | Layer A | Layer B |
+|---|---|---|
+| 0 | Clipboard history: paste text, links, images, copied files | Pinned snippets |
+| 1 | Paste (text → .txt, link → .url, image → .png), Match style, As link | Paste as plain text, PNG, link, file |
+| 2 | Save as, To folder, Share (Windows share sheet), Share link *(stub)* | Send to Desktop (picked once), Folder…, Slack *(stub)*, Email *(stub)* |
+| 3 | Convert to PNG/JPG/WEBP (images, PDF pages), PDF (images, text), TXT (PDF text, text files) | Compress images; Crop, Annotate, Redact *(stubs)* |
+| 4 | Recent saves (label = destination folder) | Undo save, Move to, Rename, Open folder |
+| 5 | Capture Area, Window, Screen, Timer (10 s) | Delay 3 s, 5 s; Full page, Record *(stubs)* |
 
-    npm install
-    npm run tauri dev
+Converted, compressed and pasted files are written beside the original/into the current folder, never overwriting.
 
-Ctrl+Alt+Space (global) opens the wheel at the cursor on the monitor under it. Every hotkey also gets a Shift twin (Ctrl+Alt+Shift+Space) that opens straight into layer B.
-Extra or replacement hotkeys: `hotkeys.json` in the app config dir, e.g. `{"hotkeys": ["Ctrl+Alt+Space", "Ctrl+Shift+K"]}`. Alt+right-click in the overlay needs the milestone 2 mouse hook.
-The Rust side is only type-checked (`cargo check --target x86_64-pc-windows-msvc`), not run.
+**Screenshot filing**: captures go to `Screenshots/Inbox` unless a rule matches (`title: Jira -> Screenshots/Jira`, `app: Google Chrome -> Screenshots/Browser`). Signals: the shared window's title and the app derived from it. Moving a screenshot to the same folder 3 times offers a rule.
+
+## Browser limits (need the native build)
+
+Explorer/desktop selection, Alt+right-click outside the page, watching the OS screenshots folder, OCR, password-manager clipboard flags, Desktop without picking it once. Chrome asks to re-allow the folder after a reload; opened from disk it may not remember the folder at all.
+
+## Windows overlay (later)
+
+`npm run tauri dev` with Rust (rustup, MSVC). Only type-checked (`cargo check --target x86_64-pc-windows-msvc`), never run. Hotkeys from `hotkeys.json` in the app config dir; each gets a Shift twin that opens layer B.
 
 ## Layout
 
-- `src/wheel/geometry.ts` angle-based hit-testing, constants from the spec
-- `src/wheel/slots.ts` 6 fixed slots x 2 layers
-- `src/wheel/controller.ts` state machine (layer, latch, hover, expansion)
-- `src/wheel/render.ts` SVG renderer
-- `src/platform/` adapters (browser clipboard now, native later)
-- `src/dev/panel.ts` browser-only panel: selection and recent-save overrides, paste target, pins
-- `src-tauri/` transparent always-on-top overlay, click-through while closed
-
-## Milestone 1 scope
-
-Real: clipboard history (copy/cut on the page), pinned snippets (localStorage), paste from history/pins/clipboard into the dev paste target, all geometry and layer behavior.
-Not implemented (item reports "not implemented yet"): export, convert, edit, capture, send-to, fix-recent actions. Selection and recent saves have no native source until milestone 2/5; the dev panel supplies them.
+- `src/wheel/` geometry, slots, controller, SVG renderer
+- `src/actions/` convert, capture, export/send/edit, paste, recent + fix recent, filing rules
+- `src/fs/` workspace folder (File System Access API), paths
+- `src/explorer/` file list and selection
+- `src/dev/panel.ts` side panel: hotkeys, paste box, rules, pins, history, log
+- `src-tauri/` overlay window

@@ -1,63 +1,61 @@
+import type { Filing } from '../actions/filing';
+import { parseRules } from '../actions/rules';
 import { loadHotkeyTexts, parseCombo, saveHotkeyTexts } from '../app/hotkeys';
+import { clipLabel } from '../app/store';
 import type { ContextStore } from '../app/store';
-import { readClipboardText } from '../platform/browser';
+import { readClipboardText } from '../platform/clipboard';
 import type { WheelContext } from '../wheel/types';
 
-function lines(value: string): string[] {
-  return value.split('\n').map((l) => l.trim()).filter(Boolean);
-}
-
-export interface DevPanel {
-  pasteTarget: () => HTMLTextAreaElement | null;
+export interface SidePanel {
+  pasteTarget: HTMLTextAreaElement;
   log: (message: string) => void;
-  openButton: HTMLButtonElement;
 }
 
-export function mountDevPanel(
+export function mountSidePanel(
   root: HTMLElement,
   store: ContextStore,
+  filing: Filing,
   onHotkeys: (texts: string[]) => void,
-): DevPanel {
+): SidePanel {
   root.innerHTML = `
-    <h1>Radial file wheel · dev</h1>
-    <button id="dev-open" data-testid="dev-open">Open wheel at last cursor position</button>
-    <div class="hint">Alt+right-click or a hotkey opens it. Shift swaps layers, Space locks, Esc cancels.</div>
+    <h1>Radial file wheel</h1>
+    <div class="hint">Alt+right-click or a hotkey opens the wheel. Shift swaps layers, Space locks, Esc cancels.
+      Over the file list it acts on the folder and selection; over the paste box it inserts text.</div>
 
-    <h2>Hotkeys (comma separated, e.g. Ctrl+Alt+Space, Ctrl+Shift+K)</h2>
+    <h2>Hotkeys (comma separated)</h2>
     <input id="dev-hotkeys" data-testid="dev-hotkeys" />
     <div class="hint" id="dev-hotkeys-hint"></div>
 
-    <h2>Selection override (one path per line, empty = no selection)</h2>
-    <textarea id="dev-selection" data-testid="dev-selection" placeholder="C:/Users/me/report.png"></textarea>
+    <h2>Paste box</h2>
+    <textarea id="paste-target" data-testid="dev-paste-target" placeholder="Open the wheel over this box to paste text here."></textarea>
 
-    <h2>Recent saves override (folder/file per line, empty = none)</h2>
-    <textarea id="dev-recent" data-testid="dev-recent" placeholder="Screenshots/Jira/shot1.png"></textarea>
-
-    <h2>Paste target</h2>
-    <textarea id="paste-target" data-testid="dev-paste-target" placeholder="The wheel pastes here. Ctrl+C on this page, or Ctrl+V text copied elsewhere, fills clipboard history."></textarea>
+    <h2>Screenshot filing rules</h2>
+    <textarea id="dev-rules" data-testid="dev-rules" placeholder="app: Google Chrome -> Screenshots/Browser&#10;title: Jira -> Screenshots/Jira"></textarea>
+    <div class="hint" id="dev-rules-hint">No match → Screenshots/Inbox. Signals: window title and app (from the title).</div>
 
     <h2>Pinned snippets</h2>
     <input id="dev-pin-input" data-testid="dev-pin-input" placeholder="Snippet, Enter to pin" />
     <ul id="dev-pinned"></ul>
 
-    <h2>Clipboard history (copy/cut/paste on this page, plus system clipboard when access is granted)</h2>
+    <h2>Clipboard history</h2>
+    <div class="hint">Ctrl+C/X on this page (files too), or Ctrl+V of anything copied elsewhere.</div>
     <ul id="dev-history"></ul>
 
     <h2>Action log</h2>
     <div class="log" id="dev-log"></div>
   `;
 
-  const selection = root.querySelector<HTMLTextAreaElement>('#dev-selection')!;
-  const recent = root.querySelector<HTMLTextAreaElement>('#dev-recent')!;
-  const pasteTarget = root.querySelector<HTMLTextAreaElement>('#paste-target')!;
-  const pinInput = root.querySelector<HTMLInputElement>('#dev-pin-input')!;
-  const pinnedList = root.querySelector<HTMLUListElement>('#dev-pinned')!;
-  const historyList = root.querySelector<HTMLUListElement>('#dev-history')!;
-  const logBox = root.querySelector<HTMLDivElement>('#dev-log')!;
-  const openButton = root.querySelector<HTMLButtonElement>('#dev-open')!;
+  const q = <T extends Element>(sel: string) => root.querySelector<T>(sel)!;
+  const pasteTarget = q<HTMLTextAreaElement>('#paste-target');
+  const pinInput = q<HTMLInputElement>('#dev-pin-input');
+  const pinnedList = q<HTMLUListElement>('#dev-pinned');
+  const historyList = q<HTMLUListElement>('#dev-history');
+  const logBox = q<HTMLDivElement>('#dev-log');
+  const hotkeys = q<HTMLInputElement>('#dev-hotkeys');
+  const hotkeysHint = q<HTMLDivElement>('#dev-hotkeys-hint');
+  const rules = q<HTMLTextAreaElement>('#dev-rules');
+  const rulesHint = q<HTMLDivElement>('#dev-rules-hint');
 
-  const hotkeys = root.querySelector<HTMLInputElement>('#dev-hotkeys')!;
-  const hotkeysHint = root.querySelector<HTMLDivElement>('#dev-hotkeys-hint')!;
   hotkeys.value = loadHotkeyTexts().join(', ');
   hotkeys.addEventListener('input', () => {
     const texts = hotkeys.value.split(',').map((t) => t.trim()).filter(Boolean);
@@ -68,8 +66,16 @@ export function mountDevPanel(
     onHotkeys(valid);
   });
 
-  selection.addEventListener('input', () => store.setSelection(lines(selection.value)));
-  recent.addEventListener('input', () => store.setRecentSaves(lines(recent.value)));
+  rules.value = filing.rulesText;
+  filing.onRulesChanged((text) => {
+    if (rules.value !== text) rules.value = text;
+  });
+  rules.addEventListener('input', () => {
+    filing.rulesText = rules.value;
+    const { invalid } = parseRules(rules.value);
+    rulesHint.textContent = invalid.length > 0 ? `Not understood: ${invalid.join(' | ')}` : 'No match → Screenshots/Inbox.';
+  });
+
   pinInput.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
     store.pin(pinInput.value);
@@ -91,7 +97,7 @@ export function mountDevPanel(
     historyList.replaceChildren(
       ...ctx.clipboard.slice(0, 5).map((c) => {
         const li = document.createElement('li');
-        li.textContent = c.text;
+        li.textContent = `${c.kind === 'text' ? '' : `[${c.kind}] `}${clipLabel(c)}`;
         return li;
       }),
     );
@@ -108,8 +114,11 @@ export function mountDevPanel(
   };
   document.addEventListener('copy', capture);
   document.addEventListener('cut', capture);
-  // Ctrl+V anywhere on the page records text copied in other apps, without a permission prompt.
-  document.addEventListener('paste', (e) => store.recordClipboard(e.clipboardData?.getData('text/plain') ?? ''));
+  // Ctrl+V anywhere on the page records what was copied in other apps, without a permission prompt.
+  document.addEventListener('paste', (e) => {
+    for (const file of e.clipboardData?.files ?? []) if (file.type.startsWith('image/')) store.recordImage(file);
+    store.recordClipboard(e.clipboardData?.getData('text/plain') ?? '');
+  });
 
   // Only poll when access is already granted, so returning to the page never triggers a prompt.
   const pollClipboard = async () => {
@@ -126,12 +135,11 @@ export function mountDevPanel(
   void pollClipboard();
 
   return {
-    pasteTarget: () => pasteTarget,
+    pasteTarget,
     log: (message) => {
       const row = document.createElement('div');
       row.textContent = `${new Date().toLocaleTimeString()} ${message}`;
       logBox.prepend(row);
     },
-    openButton,
   };
 }
