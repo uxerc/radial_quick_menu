@@ -1,0 +1,31 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Radial file wheel",
+  "version": "0.1.0",
+  "identifier": "dev.uxerc.radialfilewheel",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "overlay",
+        "title": "Radial file wheel",
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "resizable": false,
+        "shadow": false,
+        "focus": false
+      }
+    ],
+    "security": { "csp": null }
+  },
+  "bundle": { "active": true, "targets": "all", "icon": ["icons/icon.png", "icons/icon.ico"] }
+}

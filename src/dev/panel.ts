@@ -1,0 +1,99 @@
+import type { ContextStore } from '../app/store';
+import type { WheelContext } from '../wheel/types';
+
+function lines(value: string): string[] {
+  return value.split('\n').map((l) => l.trim()).filter(Boolean);
+}
+
+export interface DevPanel {
+  pasteTarget: () => HTMLTextAreaElement | null;
+  log: (message: string) => void;
+  openButton: HTMLButtonElement;
+}
+
+export function mountDevPanel(root: HTMLElement, store: ContextStore): DevPanel {
+  root.innerHTML = `
+    <h1>Radial file wheel · dev</h1>
+    <button id="dev-open" data-testid="dev-open">Open wheel at last cursor position</button>
+    <div class="hint">Ctrl+Alt+Space or Alt+right-click opens it. Shift swaps layers, Space locks, Esc cancels.</div>
+
+    <h2>Selection override (one path per line, empty = no selection)</h2>
+    <textarea id="dev-selection" data-testid="dev-selection" placeholder="C:/Users/me/report.png"></textarea>
+
+    <h2>Recent saves override (folder/file per line, empty = none)</h2>
+    <textarea id="dev-recent" data-testid="dev-recent" placeholder="Screenshots/Jira/shot1.png"></textarea>
+
+    <h2>Paste target</h2>
+    <textarea id="paste-target" data-testid="dev-paste-target" placeholder="Paste here via the wheel. Select text and Ctrl+C anywhere on this page to fill clipboard history."></textarea>
+
+    <h2>Pinned snippets</h2>
+    <input id="dev-pin-input" data-testid="dev-pin-input" placeholder="Snippet, Enter to pin" />
+    <ul id="dev-pinned"></ul>
+
+    <h2>Clipboard history (real, from copy/cut on this page)</h2>
+    <ul id="dev-history"></ul>
+
+    <h2>Action log</h2>
+    <div class="log" id="dev-log"></div>
+  `;
+
+  const selection = root.querySelector<HTMLTextAreaElement>('#dev-selection')!;
+  const recent = root.querySelector<HTMLTextAreaElement>('#dev-recent')!;
+  const pasteTarget = root.querySelector<HTMLTextAreaElement>('#paste-target')!;
+  const pinInput = root.querySelector<HTMLInputElement>('#dev-pin-input')!;
+  const pinnedList = root.querySelector<HTMLUListElement>('#dev-pinned')!;
+  const historyList = root.querySelector<HTMLUListElement>('#dev-history')!;
+  const logBox = root.querySelector<HTMLDivElement>('#dev-log')!;
+  const openButton = root.querySelector<HTMLButtonElement>('#dev-open')!;
+
+  selection.addEventListener('input', () => store.setSelection(lines(selection.value)));
+  recent.addEventListener('input', () => store.setRecentSaves(lines(recent.value)));
+  pinInput.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    store.pin(pinInput.value);
+    pinInput.value = '';
+  });
+
+  const renderLists = (ctx: WheelContext) => {
+    pinnedList.replaceChildren(
+      ...ctx.pinned.map((p) => {
+        const li = document.createElement('li');
+        li.textContent = p.text;
+        const remove = document.createElement('button');
+        remove.textContent = '×';
+        remove.addEventListener('click', () => store.unpin(p.id));
+        li.append(' ', remove);
+        return li;
+      }),
+    );
+    historyList.replaceChildren(
+      ...ctx.clipboard.slice(0, 5).map((c) => {
+        const li = document.createElement('li');
+        li.textContent = c.text;
+        return li;
+      }),
+    );
+  };
+  store.subscribe(renderLists);
+
+  const capture = () => {
+    const active = document.activeElement;
+    const text =
+      active instanceof HTMLTextAreaElement || active instanceof HTMLInputElement
+        ? active.value.slice(active.selectionStart ?? 0, active.selectionEnd ?? 0)
+        : (document.getSelection()?.toString() ?? '');
+    store.recordClipboard(text);
+  };
+  document.addEventListener('copy', capture);
+  document.addEventListener('cut', capture);
+
+  return {
+    pasteTarget: () => pasteTarget,
+    log: (message) => {
+      const row = document.createElement('div');
+      row.textContent = `${new Date().toLocaleTimeString()} ${message}`;
+      logBox.prepend(row);
+    },
+    openButton,
+  };
+}

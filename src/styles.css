@@ -1,0 +1,36 @@
+:root {
+  --wheel-bg: rgba(30, 32, 38, 0.92);
+  --wheel-bg-hover: #3b6df0;
+  --wheel-bg-outer: rgba(44, 48, 58, 0.96);
+  --wheel-fg: #eef0f4;
+  --wheel-muted: rgba(238, 240, 244, 0.32);
+  --wheel-accent-b: #a064f0;
+  color-scheme: dark;
+}
+
+html, body { margin: 0; height: 100%; background: transparent; font: 13px system-ui, sans-serif; color: var(--wheel-fg); }
+body.dev { background: #14161a; }
+
+#wheel { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 1000; }
+
+.wheel-slice > path, .wheel-child > path { fill: var(--wheel-bg); stroke: rgba(255,255,255,0.08); }
+.wheel-child > path { fill: var(--wheel-bg-outer); }
+.layer-b .wheel-slice:not(.disabled) > path { stroke: var(--wheel-accent-b); }
+.wheel-slice.expanded > path { fill: #2a3144; }
+.wheel-slice.hovered:not(.disabled) > path, .wheel-child.hovered > path { fill: var(--wheel-bg-hover); }
+.wheel-slice.disabled { opacity: 0.4; }
+.wheel-icon { stroke: var(--wheel-fg); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.wheel-label { fill: var(--wheel-fg); font-size: 10px; }
+.wheel-center circle { fill: #111318; stroke: rgba(255,255,255,0.18); }
+.wheel-center.muted .wheel-label, .wheel-center.muted .wheel-icon { opacity: var(--muted-opacity, 0.5); }
+.wheel-status { fill: var(--wheel-fg); font-size: 12px; paint-order: stroke; stroke: #111318; stroke-width: 4px; }
+
+#dev { position: fixed; top: 12px; left: 12px; width: 360px; max-height: calc(100vh - 24px); overflow: auto; display: grid; gap: 10px; padding: 12px; background: #1c1f26; border: 1px solid #2c303a; border-radius: 8px; }
+#dev h1 { font-size: 14px; margin: 0; }
+#dev h2 { font-size: 12px; margin: 0; color: #9aa3b5; font-weight: 600; }
+#dev textarea, #dev input { width: 100%; box-sizing: border-box; background: #14161a; color: inherit; border: 1px solid #2c303a; border-radius: 4px; padding: 6px; font: inherit; }
+#dev textarea { min-height: 56px; resize: vertical; }
+#dev button { background: #2a3144; color: inherit; border: 1px solid #3a4258; border-radius: 4px; padding: 4px 8px; cursor: pointer; }
+#dev ul { margin: 0; padding-left: 16px; }
+#dev .log { max-height: 140px; overflow: auto; font-family: ui-monospace, monospace; font-size: 11px; }
+#dev .hint { color: #9aa3b5; font-size: 11px; }
