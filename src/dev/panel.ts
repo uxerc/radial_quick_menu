@@ -1,5 +1,6 @@
 import { loadHotkeyTexts, parseCombo, saveHotkeyTexts } from '../app/hotkeys';
 import type { ContextStore } from '../app/store';
+import { readClipboardText } from '../platform/browser';
 import type { WheelContext } from '../wheel/types';
 
 function lines(value: string): string[] {
@@ -33,13 +34,13 @@ export function mountDevPanel(
     <textarea id="dev-recent" data-testid="dev-recent" placeholder="Screenshots/Jira/shot1.png"></textarea>
 
     <h2>Paste target</h2>
-    <textarea id="paste-target" data-testid="dev-paste-target" placeholder="Paste here via the wheel. Select text and Ctrl+C anywhere on this page to fill clipboard history."></textarea>
+    <textarea id="paste-target" data-testid="dev-paste-target" placeholder="The wheel pastes here. Ctrl+C on this page, or Ctrl+V text copied elsewhere, fills clipboard history."></textarea>
 
     <h2>Pinned snippets</h2>
     <input id="dev-pin-input" data-testid="dev-pin-input" placeholder="Snippet, Enter to pin" />
     <ul id="dev-pinned"></ul>
 
-    <h2>Clipboard history (real, from copy/cut on this page)</h2>
+    <h2>Clipboard history (copy/cut/paste on this page, plus system clipboard when access is granted)</h2>
     <ul id="dev-history"></ul>
 
     <h2>Action log</h2>
@@ -107,6 +108,22 @@ export function mountDevPanel(
   };
   document.addEventListener('copy', capture);
   document.addEventListener('cut', capture);
+  // Ctrl+V anywhere on the page records text copied in other apps, without a permission prompt.
+  document.addEventListener('paste', (e) => store.recordClipboard(e.clipboardData?.getData('text/plain') ?? ''));
+
+  // Only poll when access is already granted, so returning to the page never triggers a prompt.
+  const pollClipboard = async () => {
+    try {
+      const status = await navigator.permissions.query({ name: 'clipboard-read' as PermissionName });
+      if (status.state !== 'granted') return;
+    } catch {
+      return;
+    }
+    const text = await readClipboardText();
+    if (text) store.recordClipboard(text);
+  };
+  window.addEventListener('focus', () => void pollClipboard());
+  void pollClipboard();
 
   return {
     pasteTarget: () => pasteTarget,
