@@ -1,12 +1,12 @@
 import { basename, safeFileName } from '../fs/paths';
-import { readClipboardText, withTimeout } from '../platform/clipboard';
+import { withTimeout } from '../platform/clipboard';
 import type { ActionResult, ClipItem } from '../wheel/types';
+import { toast } from '../ui/toast';
 import { NO_FOLDER, fail, ok, timestamp } from './deps';
 import type { ActionDeps } from './deps';
 
 const URL_PATTERN = /^https?:\/\/\S+$/;
-const READ_BLOCKED =
-  'Clipboard read blocked by the browser. Allow clipboard access for this page, or press Ctrl+V once in the page to add it to history.';
+const PASTE_WAIT_MS = 15000;
 
 type Mode = 'default' | 'plain' | 'link' | 'png' | 'file';
 
@@ -16,20 +16,23 @@ interface ClipContent {
   html: string | null;
 }
 
-async function readClipboard(): Promise<ClipContent | null> {
+async function readClipboardApi(): Promise<ClipContent> {
+  const items = await navigator.clipboard.read();
+  const content: ClipContent = { text: null, image: null, html: null };
+  for (const item of items) {
+    const imageType = item.types.find((t) => t.startsWith('image/'));
+    if (imageType && !content.image) content.image = await item.getType(imageType);
+    if (item.types.includes('text/plain') && content.text === null) content.text = await (await item.getType('text/plain')).text();
+    if (item.types.includes('text/html') && content.html === null) content.html = await (await item.getType('text/html')).text();
+  }
+  return content;
+}
+
+async function clipboardPermission(): Promise<PermissionState | 'unknown'> {
   try {
-    const items = await withTimeout(navigator.clipboard.read());
-    const content: ClipContent = { text: null, image: null, html: null };
-    for (const item of items) {
-      const imageType = item.types.find((t) => t.startsWith('image/'));
-      if (imageType && !content.image) content.image = await item.getType(imageType);
-      if (item.types.includes('text/plain') && content.text === null) content.text = await (await item.getType('text/plain')).text();
-      if (item.types.includes('text/html') && content.html === null) content.html = await (await item.getType('text/html')).text();
-    }
-    return content;
+    return (await navigator.permissions.query({ name: 'clipboard-read' as PermissionName })).state;
   } catch {
-    const text = await readClipboardText();
-    return text === null ? null : { text, image: null, html: null };
+    return 'unknown';
   }
 }
 
@@ -82,9 +85,41 @@ async function pasteContent(deps: ActionDeps, content: ClipContent, mode: Mode):
   return writeToFolder(deps, `${safeFileName(text.split('\n')[0], 'Snippet')} ${stamp}.txt`, text);
 }
 
+/**
+ * Pages opened from disk (file://) never get clipboard-read permission and a pending prompt
+ * never settles, but a real Ctrl+V always delivers the clipboard. So unless access is already
+ * granted, take whichever comes first: the permission prompt being allowed, or a Ctrl+V.
+ */
+async function readClipboard(): Promise<ClipContent | null> {
+  if ((await clipboardPermission()) === 'granted') {
+    const content = await withTimeout(readClipboardApi()).catch(() => null);
+    if (content) return content;
+  }
+  toast('Press Ctrl+V to paste (or allow clipboard access if Chrome asks).');
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (content: ClipContent | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      document.removeEventListener('paste', onPaste, true);
+      resolve(content);
+    };
+    const timer = setTimeout(() => finish(null), PASTE_WAIT_MS);
+    const onPaste = (e: ClipboardEvent) => {
+      e.preventDefault();
+      const data = e.clipboardData;
+      const image = [...(data?.files ?? [])].find((f) => f.type.startsWith('image/')) ?? null;
+      finish({ text: data?.getData('text/plain') || null, image, html: data?.getData('text/html') || null });
+    };
+    document.addEventListener('paste', onPaste, true);
+    readClipboardApi().then(finish, () => undefined);
+  });
+}
+
 export async function pasteAction(deps: ActionDeps, mode: Mode): Promise<ActionResult> {
   const content = await readClipboard();
-  if (!content) return fail(READ_BLOCKED);
+  if (!content) return fail('No Ctrl+V within 15 seconds, paste cancelled');
   return pasteContent(deps, content, mode);
 }
 
