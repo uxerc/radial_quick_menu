@@ -3,6 +3,8 @@ import { parseRules } from '../actions/rules';
 import { loadHotkeyTexts, parseCombo, saveHotkeyTexts } from '../app/hotkeys';
 import { clipLabel } from '../app/store';
 import type { ContextStore } from '../app/store';
+import { mountUsage } from './usagePanel';
+import type { UsageLog } from '../app/usage';
 import { readClipboardText } from '../platform/clipboard';
 import type { WheelContext } from '../wheel/types';
 
@@ -15,11 +17,13 @@ export function mountSidePanel(
   root: HTMLElement,
   store: ContextStore,
   filing: Filing,
+  usage: UsageLog,
   onHotkeys: (texts: string[]) => void,
 ): SidePanel {
   root.innerHTML = `
     <h1>Radial file wheel</h1>
-    <div class="hint">Alt+right-click or a hotkey opens the wheel. Shift swaps layers, Space locks, Esc cancels.
+    <div class="hint">Alt+right-click or a hotkey opens the wheel. Click an item, or keep the button/key held and release over it.
+      Keys 1–6 pick a slot, 1–5 a child, Backspace goes back. Shift swaps layers, Space locks, Esc cancels.
       Over the file list it acts on the folder and selection; over the paste box it inserts text.</div>
 
     <h2>Hotkeys (comma separated)</h2>
@@ -40,6 +44,9 @@ export function mountSidePanel(
     <h2>Clipboard history</h2>
     <div class="hint">Ctrl+C/X on this page (files too), or Ctrl+V of anything copied elsewhere.</div>
     <ul id="dev-history"></ul>
+
+    <h2>Usage (stored in this browser only)</h2>
+    <div id="dev-usage"></div>
 
     <h2>Action log</h2>
     <div class="log" id="dev-log"></div>
@@ -103,6 +110,7 @@ export function mountSidePanel(
     );
   };
   store.subscribe(renderLists);
+  mountUsage(q<HTMLDivElement>('#dev-usage'), usage);
 
   const capture = () => {
     const active = document.activeElement;

@@ -87,3 +87,32 @@ describe('WheelController', () => {
     expect(c.view().layer).toBe('B');
   });
 });
+
+describe('WheelController keyboard', () => {
+  it('picks a slot, then a child by number', () => {
+    const c = opened();
+    expect(c.pressNumber(2)).toBeNull();
+    expect(c.view().expandedSlot).toBe(1);
+    expect(c.pressNumber(3)?.action.id).toBe('paste.asLink');
+    expect(c.commit().item?.action.id).toBe('paste.asLink');
+  });
+
+  it('goes back to slot level and ignores missing children', () => {
+    const c = opened();
+    c.pressNumber(1);
+    expect(c.pressNumber(5)).toBeNull();
+    c.back();
+    expect(c.view().expandedSlot).toBeNull();
+    c.pressNumber(6);
+    expect(c.view().expandedSlot).toBe(5);
+  });
+
+  it('does not expand disabled slots and lets the mouse take over again', () => {
+    const c = opened();
+    c.pressNumber(5);
+    expect(c.view().expandedSlot).toBeNull();
+    expect(c.view().centerLabel.muted).toBe(true);
+    at(c, 80, 60);
+    expect(c.view().expandedSlot).toBe(1);
+  });
+});

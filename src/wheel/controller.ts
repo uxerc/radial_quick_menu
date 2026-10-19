@@ -25,6 +25,8 @@ export class WheelController {
   private latched = false;
   private hit: Hit = { kind: 'cancel' };
   private expandedSlot: number | null = null;
+  /** Set by number keys; the next real pointer move hands control back to the mouse. */
+  private keyHit: Hit | null = null;
   private context: WheelContext = EMPTY_CONTEXT;
   private listeners = new Set<() => void>();
 
@@ -50,6 +52,7 @@ export class WheelController {
     this.isOpen = true;
     this.hit = { kind: 'cancel' };
     this.expandedSlot = null;
+    this.keyHit = null;
     this.refresh();
   }
 
@@ -61,8 +64,42 @@ export class WheelController {
   }
 
   pointerMove(x: number, y: number): void {
+    if (x === this.pointer.x && y === this.pointer.y) return;
     this.pointer = { x, y };
+    this.keyHit = null;
     if (this.isOpen) this.refresh();
+  }
+
+  get hitKind(): Hit['kind'] {
+    return this.hit.kind;
+  }
+
+  /**
+   * Number keys: with a slice expanded, n picks child n; otherwise n picks slot n.
+   * Returns the child item when one was picked, so the caller can run it straight away.
+   */
+  pressNumber(n: number): WheelItem | null {
+    if (!this.isOpen) return null;
+    const slots = this.slots();
+    if (this.expandedSlot !== null) {
+      const child = slots[this.expandedSlot].children[n - 1];
+      if (!child) return null;
+      this.keyHit = { kind: 'child', slot: this.expandedSlot, child: n - 1 };
+      this.refresh();
+      return child;
+    }
+    if (n < 1 || n > slots.length) return null;
+    this.keyHit = { kind: 'slice', slot: n - 1 };
+    this.refresh();
+    return null;
+  }
+
+  /** Backspace: from the outer ring back to choosing a slot. */
+  back(): void {
+    if (!this.isOpen) return;
+    this.keyHit = { kind: 'cancel' };
+    this.expandedSlot = null;
+    this.refresh();
   }
 
   setShift(held: boolean): void {
@@ -132,7 +169,10 @@ export class WheelController {
       this.expandedSlot !== null
         ? { slot: this.expandedSlot, childCount: slots[this.expandedSlot].children.length }
         : null;
-    this.hit = hitTest(this.pointer.x - this.origin.x, this.pointer.y - this.origin.y, expanded);
+    this.hit = this.keyHit ?? hitTest(this.pointer.x - this.origin.x, this.pointer.y - this.origin.y, expanded);
+    if (this.hit.kind === 'child' && !slots[this.hit.slot].children[this.hit.child]) {
+      this.hit = { kind: 'slice', slot: this.hit.slot };
+    }
 
     this.expandedSlot = null;
     if (this.hit.kind === 'slice' || this.hit.kind === 'child') {

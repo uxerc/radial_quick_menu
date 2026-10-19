@@ -4,7 +4,9 @@ Radial menu for the top 20% of file actions. Browser build: every action a brows
 
 ## Run
 
-Easiest: `npm run build:standalone`, then open `dist-standalone/radial-file-wheel.html` in Chrome or Edge (no server).
+Hosted: https://uxerc.github.io/radial_quick_menu/ (rebuilt by `.github/workflows/pages.yml` on every push to `main`).
+
+Offline: `npm run build:standalone`, then open `dist-standalone/radial-file-wheel.html` in Chrome or Edge. From disk, paste needs an extra Ctrl+V and the folder isn't remembered.
 
 Dev server:
 
@@ -17,7 +19,10 @@ Dev server:
 - **Open folder…** (top right) and allow edit access. Its files are what the wheel acts on: click, Ctrl+click, Shift+click, Ctrl+A.
 - Open the wheel with **Alt+right-click** or **Ctrl+Shift+Space** (hotkeys are editable; Ctrl+Alt+Space is taken by the Claude app).
 - Over the file list the wheel acts on the folder and selection; over the paste box it inserts text.
+- Pick by clicking, or keep the right button / hotkey held, move to an item and release (marking-menu style). Releasing without picking leaves the wheel open.
+- Keys 1–6 pick a slot, 1–5 a child (shown on the wheel), Backspace goes back, Enter commits the hovered item.
 - Shift swaps to layer B, Space locks it, Esc / right-click / click outside / click center cancels.
+- The side panel logs usage locally (opens, picks per item, time to pick, cancels, method); Export JSON to share it.
 
 | Slot | Layer A | Layer B |
 |---|---|---|

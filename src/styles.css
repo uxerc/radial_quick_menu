@@ -56,3 +56,8 @@ button:hover { background: #343d55; }
 .area-select { position: fixed; inset: 0; z-index: 1200; background: #000; cursor: crosshair; display: grid; place-items: center; }
 .area-select canvas { max-width: 100vw; max-height: 100vh; opacity: 0.75; pointer-events: none; }
 .area-box { position: fixed; display: none; border: 2px solid #3b6df0; background: rgba(59,109,240,0.12); pointer-events: none; }
+table.usage { width: 100%; border-collapse: collapse; font-size: 11px; }
+table.usage th, table.usage td { text-align: left; padding: 2px 4px; border-bottom: 1px solid #2c303a; }
+table.usage td:not(:first-child), table.usage th:not(:first-child) { text-align: right; white-space: nowrap; }
+#side .row { display: flex; gap: 6px; }
+.wheel-digit { fill: var(--wheel-fg); opacity: 0.45; font-size: 9px; }

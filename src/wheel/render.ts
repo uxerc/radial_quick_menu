@@ -53,6 +53,14 @@ function label(text: string, x: number, y: number): SVGTextElement {
   return el;
 }
 
+/** Number-key hint near the outer edge of each cell. */
+function digit(cx: number, cy: number, radius: number, angle: number, n: number): SVGTextElement {
+  const p = polar(cx, cy, radius, angle);
+  const el = svgEl('text', { x: p.x, y: p.y, 'text-anchor': 'middle', 'dominant-baseline': 'middle' }, 'wheel-digit');
+  el.textContent = String(n);
+  return el;
+}
+
 function renderItem(
   group: SVGGElement,
   cx: number,
@@ -95,6 +103,7 @@ export function renderWheel(svg: SVGSVGElement, view: WheelView): void {
       }),
     );
     renderItem(group, cx, cy, ringMid, center, slot.icon, slot.label);
+    group.append(digit(cx, cy, GEOMETRY.innerOuter - 9, center, slot.index + 1));
     root.append(group);
   }
 
@@ -112,6 +121,7 @@ export function renderWheel(svg: SVGSVGElement, view: WheelView): void {
         }),
       );
       renderItem(group, cx, cy, outerMid, center, item.icon, item.label);
+      group.append(digit(cx, cy, GEOMETRY.outerOuter - 8, center, index + 1));
       root.append(group);
     });
   }

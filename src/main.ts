@@ -5,6 +5,7 @@ import type { PasteTarget } from './actions/deps';
 import { RecentSaves } from './actions/recent';
 import { loadHotkeyTexts, parseAll } from './app/hotkeys';
 import { bindInput } from './app/input';
+import { UsageLog } from './app/usage';
 import { ContextStore } from './app/store';
 import { mountSidePanel } from './dev/panel';
 import { Explorer } from './explorer/explorer';
@@ -20,13 +21,14 @@ const store = new ContextStore();
 const workspace = new Workspace();
 const recent = new RecentSaves(() => workspace.name);
 const filing = new Filing(workspace, recent);
+const usage = new UsageLog();
 
 store.subscribe((ctx) => controller.setContext(ctx));
 recent.subscribe((saves) => store.setRecentSaves(saves));
 controller.subscribe(() => renderWheel(svg, controller.view()));
 
 let hotkeys = parseAll(loadHotkeyTexts());
-const panel = mountSidePanel(document.querySelector<HTMLElement>('#side')!, store, filing, (texts) => {
+const panel = mountSidePanel(document.querySelector<HTMLElement>('#side')!, store, filing, usage, (texts) => {
   hotkeys = parseAll(texts);
 });
 const explorer = new Explorer(document.querySelector<HTMLElement>('#explorer')!, workspace, store);
@@ -41,6 +43,7 @@ const input = bindInput(
     void actions
       .run(item.action)
       .then((result) => {
+        usage.markLastCommit(result.ok);
         panel.log(`${result.ok ? '✓' : '✗'} ${item.fullLabel}: ${result.message}`);
         if (!result.ok) toast(result.message, undefined, 'error');
       })
@@ -50,10 +53,14 @@ const input = bindInput(
       });
   },
   {
-    onOpen: (x, y) => {
+    onOpen: (x, y, trigger) => {
+      usage.record({ t: Date.now(), type: 'open', trigger });
       const under = document.elementFromPoint(x, y);
       target = under === panel.pasteTarget ? { kind: 'text', element: panel.pasteTarget } : { kind: 'folder' };
     },
+    onCommit: (item, method, ms) =>
+      usage.record({ t: Date.now(), type: 'commit', item: item.action.id, label: item.fullLabel, layer: controller.view().layer, method, ms }),
+    onCancel: (reason, ms, trigger) => usage.record({ t: Date.now(), type: 'cancel', reason, ms, trigger }),
     onClosed: isTauri ? closeOverlay : undefined,
   },
   () => hotkeys,
